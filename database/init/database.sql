@@ -19,17 +19,14 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 COMMIT;
 
--- Also makes this script safe to apply to the original development schema.
 BEGIN;
 
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key UUID;
--- Assign independent keys only to legacy rows that did not have a client token.
 UPDATE transactions SET idempotency_key = gen_random_uuid() WHERE idempotency_key IS NULL;
 ALTER TABLE transactions ALTER COLUMN idempotency_key SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_transactions_idempotency_key
     ON transactions (idempotency_key);
 
--- Keep movements and their retry tokens when a user deletion is attempted.
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_user_id_fkey;
 ALTER TABLE transactions ADD CONSTRAINT transactions_user_id_fkey
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT;
