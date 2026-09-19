@@ -1,0 +1,23 @@
+﻿name: smartbancs
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: smartbancs
+      POSTGRES_USER: smartbancs
+      POSTGRES_PASSWORD: smartbancs_local
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U smartbancs -d smartbancs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
