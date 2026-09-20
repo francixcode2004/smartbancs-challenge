@@ -7,15 +7,16 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import com.tcs.SmartBancsApp.dto.TransactionRequest;
+import com.tcs.SmartBancsApp.dto.TransferRequest;
+import com.tcs.SmartBancsApp.dto.CashRequest;
+import com.tcs.SmartBancsApp.dto.ServicePaymentRequest;
+import com.tcs.SmartBancsApp.model.ModelBasicServices;
 import com.tcs.SmartBancsApp.model.ModelTransactions;
 import com.tcs.SmartBancsApp.services.ServiceTransactions;
 
 @RestController
 @RequestMapping("/transactions")
 public class Transactions {
-
     private final ServiceTransactions serviceTransactions;
 
     public Transactions(ServiceTransactions serviceTransactions) {
@@ -24,8 +25,8 @@ public class Transactions {
 
     @GetMapping({"", "/"})
     public List<ModelTransactions> getTransactions(
-            @RequestParam(name = "userId", required = false) UUID userId) {
-        return serviceTransactions.getTransactions(userId);
+            @RequestParam(name = "accountNumber", required = false) String accountNumber) {
+        return serviceTransactions.getTransactions(accountNumber);
     }
 
     @GetMapping("/{id}")
@@ -38,11 +39,37 @@ public class Transactions {
         return serviceTransactions.getByIdempotencyKey(key);
     }
 
-    @PostMapping({"", "/"})
-    public ResponseEntity<ModelTransactions> createTransaction(
-            @RequestHeader("Idempotency-Key") UUID key,
-            @Valid @RequestBody TransactionRequest request) {
-        var result = serviceTransactions.createTransaction(key, request);
+    @GetMapping("/services")
+    public List<ModelBasicServices> getServices() {
+        return serviceTransactions.getServices();
+    }
+
+
+    @PostMapping("/deposits")
+    public ResponseEntity<ModelTransactions> deposit(@RequestHeader("Idempotency-Key") UUID key,
+            @Valid @RequestBody CashRequest request) {
+        return response(serviceTransactions.deposit(key, request));
+    }
+
+    @PostMapping("/withdrawals")
+    public ResponseEntity<ModelTransactions> withdraw(@RequestHeader("Idempotency-Key") UUID key,
+            @Valid @RequestBody CashRequest request) {
+        return response(serviceTransactions.withdraw(key, request));
+    }
+
+    @PostMapping("/transfers")
+    public ResponseEntity<ModelTransactions> transfer(@RequestHeader("Idempotency-Key") UUID key,
+            @Valid @RequestBody TransferRequest request) {
+        return response(serviceTransactions.transfer(key, request));
+    }
+
+    @PostMapping("/service-payments")
+    public ResponseEntity<ModelTransactions> payService(@RequestHeader("Idempotency-Key") UUID key,
+            @Valid @RequestBody ServicePaymentRequest request) {
+        return response(serviceTransactions.payService(key, request));
+    }
+
+    private ResponseEntity<ModelTransactions> response(ServiceTransactions.CreationResult result) {
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .location(URI.create("/transactions/" + result.transaction().getTransactionId()))
                 .header("Idempotency-Replayed", Boolean.toString(!result.created()))

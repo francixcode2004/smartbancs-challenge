@@ -2,59 +2,57 @@ package com.tcs.SmartBancsApp.controller;
 
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
-
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import com.tcs.SmartBancsApp.dto.UserRequest;
-import com.tcs.SmartBancsApp.model.ModelUsers;
+import com.tcs.SmartBancsApp.dto.UserResponse;
+import com.tcs.SmartBancsApp.dto.ProfileRequest;
+import com.tcs.SmartBancsApp.model.ModelTransactions;
 import com.tcs.SmartBancsApp.services.ServiceUsers;
+import com.tcs.SmartBancsApp.services.ServiceTransactions;
 
 @RestController
 @RequestMapping("/users")
 public class Users {
-
     private final ServiceUsers serviceUsers;
+    private final ServiceTransactions transactions;
 
-    public Users(ServiceUsers serviceUsers) {
+    public Users(ServiceUsers serviceUsers, ServiceTransactions transactions) {
         this.serviceUsers = serviceUsers;
+        this.transactions = transactions;
     }
 
     @GetMapping({"", "/"})
-    public List<ModelUsers> getUsers() {
+    public List<UserResponse> getUsers() {
         return serviceUsers.getUsers();
     }
 
-    @GetMapping("/{id}")
-    public ModelUsers getUser(@PathVariable("id") UUID id) {
-        return serviceUsers.getUser(id);
+    @GetMapping("/{accountNumber}")
+    public UserResponse getUser(@PathVariable("accountNumber") String accountNumber) {
+        return serviceUsers.getUser(accountNumber);
+    }
+
+    @GetMapping("/{accountNumber}/transactions")
+    public List<ModelTransactions> getMovements(@PathVariable("accountNumber") String accountNumber) {
+        return transactions.getTransactions(accountNumber);
     }
 
     @PostMapping({"", "/"})
-    public ResponseEntity<ModelUsers> createUser(@Valid @RequestBody UserRequest request) {
-        ModelUsers user = serviceUsers.createUser(request);
-        return ResponseEntity.created(URI.create("/users/" + user.getUserId())).body(user);
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
+        var user = serviceUsers.createUser(request);
+        return ResponseEntity.created(URI.create("/users/" + user.accountNumber())).body(user);
     }
 
-    @PutMapping("/{id}")
-    public ModelUsers updateUser(
-            @PathVariable("id") UUID id,
-            @Valid @RequestBody UserRequest request) {
-        return serviceUsers.updateUser(id, request);
+    @PutMapping("/{accountNumber}")
+    public UserResponse updateUser(@PathVariable("accountNumber") String accountNumber,
+            @Valid @RequestBody ProfileRequest request) {
+        return serviceUsers.updateUser(accountNumber, request);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable("id") UUID id) {
-        serviceUsers.deleteUser(id);
+    @DeleteMapping("/{accountNumber}")
+    public ResponseEntity<Void> deleteUser(@PathVariable("accountNumber") String accountNumber) {
+        serviceUsers.deleteUser(accountNumber);
         return ResponseEntity.noContent().build();
     }
 }

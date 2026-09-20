@@ -28,7 +28,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleIntegrity() {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                "message", "Conflicto de integridad: correo duplicado o usuario con movimientos"));
+                "message", "Conflicto de integridad: datos duplicados o registros relacionados con cuentas o movimientos"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

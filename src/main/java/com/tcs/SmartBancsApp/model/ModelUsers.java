@@ -1,6 +1,6 @@
 package com.tcs.SmartBancsApp.model;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
@@ -43,10 +43,10 @@ public class ModelUsers {
 
     @Column(name = "created_at", updatable = false)
     @Setter(AccessLevel.NONE)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now(ZoneOffset.UTC);
+        createdAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

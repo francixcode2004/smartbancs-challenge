@@ -1,0 +1,27 @@
+<section class="panel operations-panel" aria-label="Operaciones bancarias">
+  <div class="panel-heading"><div><p class="eyebrow">A UN PASO</p><h3>¿Qué quieres hacer?</h3></div><span class="quiet-icon"><app-icon name="transfer"/></span></div>
+  <div class="operation-tabs" role="group" aria-label="Tipo de operación">
+    @for (option of options; track option.kind) { <button type="button" [class.selected]="kind() === option.kind" [attr.aria-pressed]="kind() === option.kind" [disabled]="busy() || pending()" (click)="choose(option.kind)"><app-icon [name]="option.icon"/><span>{{ option.label }}</span></button> }
+  </div>
+  @if (result(); as movement) {
+    <div class="receipt-success" role="status"><span class="success-circle"><app-icon name="check"/></span><h4>Operación confirmada</h4><strong>{{ movement.amount | currency:'USD':'symbol':'1.2-2' }}</strong><p>Tu movimiento ya está registrado.</p><span class="receipt-id">Comprobante {{ movement.transactionId.slice(0, 8) }}</span><button class="button secondary full" type="button" (click)="result.set(null)">Hacer otra operación</button></div>
+  } @else {
+    @if (pending()) { <div class="notice warning" role="status"><strong>Hay una operación por confirmar</strong><p>Conservamos sus datos para evitar un doble cobro. Consulta el estado o reintenta la misma operación.</p><button type="button" class="text-button" [disabled]="busy()" (click)="checkStatus()">Consultar estado →</button></div> }
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      @if (kind() === 'transfer') {
+        <label for="destination">Cuenta del destinatario</label><div class="lookup-row"><input id="destination" formControlName="destination" inputmode="numeric" maxlength="8" placeholder="Número de 8 dígitos" (input)="destinationChanged()"/><button type="button" class="button secondary" [disabled]="searching() || busy() || pending()" (click)="lookup()">{{ searching() ? 'Buscando…' : 'Consultar' }}</button></div>
+        @if (recipient(); as person) { <div class="recipient-card"><span class="avatar small">{{ person.name.charAt(0) }}</span><div><span class="tiny muted">DESTINATARIO CONFIRMADO</span><strong>{{ person.name }}</strong><span>Cuenta {{ person.accountNumber }}</span></div><span class="verified"><app-icon name="check"/></span></div> }
+      } @else if (kind() === 'service_payment') {
+        <label for="service">Servicio a pagar</label><select id="service" formControlName="serviceCode">@for (service of services(); track service.code) { <option [value]="service.code">{{ service.name }}</option> }</select>
+        <label for="reference">Referencia o número de contrato</label><input id="reference" formControlName="customerReference" placeholder="Ej. CONTRATO-12345" maxlength="100"/>
+      } @else { <div class="operation-account"><app-icon name="wallet"/><div><span class="muted tiny">TU CUENTA SMARTBANCS</span><strong>{{ user.accountNumber }}</strong></div></div> }
+      <label for="amount">{{ kind() === 'deposit' ? '¿Cuánto quieres depositar?' : kind() === 'withdraw' ? '¿Cuánto quieres retirar?' : 'Importe' }}</label><div class="amount-input"><span>$</span><input id="amount" formControlName="amount" inputmode="decimal" placeholder="0.00" autocomplete="off" maxlength="16"/><span>USD</span></div>
+      @if (kind() !== 'deposit') { <p class="field-hint">Disponible: {{ user.balance | currency:'USD':'symbol':'1.2-2' }}</p> }
+      <label for="description">Descripción <span class="optional">Opcional</span></label><input id="description" formControlName="description" placeholder="¿Para qué es este movimiento?" maxlength="255"/>
+      @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
+      @if (info()) { <p class="notice" role="status">{{ info() }}</p> }
+      <button class="button primary full" [disabled]="busy() || searching() || (kind() === 'transfer' && !recipient() && !pending())">{{ busy() ? 'Confirmando…' : pending() ? 'Reintentar misma operación' : label() }}<app-icon name="arrow"/></button>
+      <p class="operation-footnote"><app-icon name="lock"/>{{ kind() === 'deposit' || kind() === 'service_payment' ? 'Operación simulada para esta demostración.' : 'Tus saldos se actualizan al confirmar la operación.' }}</p>
+    </form>
+  }
+</section>

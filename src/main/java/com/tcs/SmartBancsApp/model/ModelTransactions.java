@@ -1,54 +1,50 @@
 package com.tcs.SmartBancsApp.model;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.OffsetDateTime;
 import java.util.UUID;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import lombok.AccessLevel;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
+// Los movimientos confirmados se consultan; no se editan ni se eliminan por la API.
 @Entity
 @Table(name = "transactions")
 @Getter
-@Setter
 @NoArgsConstructor
 public class ModelTransactions {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false, updatable = false)
-    @Setter(AccessLevel.NONE)
     private UUID transactionId;
 
-    @Column(name = "user_id", nullable = false)
+    // Titular que realiza la operacion; en un deposito es el titular del destino.
+    @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
+    @Column(name = "source_account_number", length = 8, updatable = false)
+    private String sourceAccountNumber;
+
+    @Column(name = "destination_account_number", length = 8, updatable = false)
+    private String destinationAccountNumber;
+
+    @Column(name = "service_code", length = 30, updatable = false)
+    private String serviceCode;
+
+    @Column(name = "customer_reference", length = 100, updatable = false)
+    private String customerReference;
+
     @Column(name = "idempotency_key", nullable = false, unique = true, updatable = false)
-    @Setter(AccessLevel.NONE)
     private UUID idempotencyKey;
 
-    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
+    @Column(name = "amount", nullable = false, precision = 15, scale = 2, updatable = false)
     private BigDecimal amount;
 
-    @Column(name = "type", nullable = false, length = 6)
+    @Column(name = "description", length = 255, updatable = false)
+    private String description;
+
+    @Column(name = "type", nullable = false, length = 16, updatable = false)
     private String type;
 
     @Column(name = "created_at", updatable = false)
-    @Setter(AccessLevel.NONE)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now(ZoneOffset.UTC);
-    }
+    private OffsetDateTime createdAt;
 }

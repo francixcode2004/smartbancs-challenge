@@ -1,0 +1,47 @@
+<main class="auth-layout">
+  <section class="auth-story">
+    <a class="brand brand-light" routerLink="/login" aria-label="SmartBancs, inicio"><span class="brand-mark">s</span>smartbancs<span class="brand-dot">.</span></a>
+    <div class="story-copy"><span class="eyebrow">TU DINERO, A TU RITMO</span><h1>Tu siguiente paso<br>empieza aquí<span>.</span></h1><p>Una forma más simple de gestionar tu dinero.<br>Todo lo que necesitas, en un solo lugar.</p></div>
+    <div class="story-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="abstract-card"><div class="mini-brand">smartbancs.</div><div class="card-chip"></div><div class="card-dots">•••• &nbsp; •••• &nbsp; ••••</div><div class="card-bottom">TU CUENTA, SIEMPRE CONTIGO <span>↗</span></div></div><div class="floating-label"><app-icon name="check"/> Todo en un mismo lugar</div></div>
+    <div class="story-footer"><app-icon name="shield"/><span>Acceso protegido · Banca de demostración</span><span>01 / 03</span></div>
+  </section>
+  <section class="auth-form-side">
+    <div class="auth-top"><span>SmartBancs App</span><span class="demo-badge">ENTORNO DEMO</span></div>
+    <div class="auth-form-wrap">
+      @if (mode === 'login') {
+        <div class="section-icon"><app-icon name="lock"/></div><p class="eyebrow">QUÉ BUENO VERTE</p><h2>Bienvenido de nuevo</h2><p class="muted intro">Ingresa a tu cuenta y continúa con tus planes.</p>
+        @if (banner()) { <div class="notice" role="status">{{ banner() }}</div> }
+        <form [formGroup]="loginForm" (ngSubmit)="login()">
+          <label for="login-account">Número de cuenta</label><input id="login-account" formControlName="accountNumber" inputmode="numeric" maxlength="8" placeholder="Tus 8 dígitos" autocomplete="username"/>
+          <div class="label-line"><label for="login-password">Contraseña</label><a routerLink="/forgot-password">Olvidé mi contraseña</a></div>
+          <div class="password-input"><input id="login-password" formControlName="password" [type]="visiblePassword() ? 'text' : 'password'" placeholder="Ingresa tu contraseña" autocomplete="current-password"/><button type="button" class="icon-button" (click)="visiblePassword.set(!visiblePassword())" [attr.aria-label]="visiblePassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"><app-icon name="eye"/></button></div>
+          @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
+          <button class="button primary full" [disabled]="busy()">{{ busy() ? 'Ingresando…' : 'Ingresar a mi cuenta' }}<app-icon name="arrow"/></button>
+        </form><p class="auth-switch">¿Aún no tienes cuenta? <a routerLink="/register">Crea tu cuenta</a></p>
+      } @else if (mode === 'register') {
+        <a class="back-link" routerLink="/login">← Volver al inicio</a><p class="eyebrow">EMPIEZA ALGO NUEVO</p><h2>Tu cuenta, en minutos</h2><p class="muted intro">Crearemos tu número de cuenta automáticamente.</p>
+        <form [formGroup]="registerForm" (ngSubmit)="register()">
+          <label for="name">Nombre completo</label><input id="name" formControlName="name" placeholder="Como aparece en tu identificación" autocomplete="name" maxlength="100"/>
+          <label for="email">Correo electrónico</label><input id="email" formControlName="email" type="email" placeholder="nombre@correo.com" autocomplete="email" maxlength="100"/>
+          <label for="register-password">Contraseña</label><input id="register-password" formControlName="password" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" maxlength="128"/>
+          <label for="confirm-password">Confirma tu contraseña</label><input id="confirm-password" formControlName="confirmPassword" type="password" placeholder="Escríbela una vez más" autocomplete="new-password" maxlength="128"/>
+          @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
+          <button class="button primary full" [disabled]="busy()">{{ busy() ? 'Creando tu cuenta…' : 'Crear mi cuenta' }}<app-icon name="arrow"/></button>
+        </form><p class="auth-switch">¿Ya tienes una cuenta? <a routerLink="/login">Inicia sesión</a></p>
+      } @else {
+        <a class="back-link" routerLink="/login">← Volver al inicio</a><div class="section-icon"><app-icon name="shield"/></div><h2>Cambia tu contraseña</h2><p class="muted intro">Para esta demo, confirma tu contraseña anterior y elige una nueva. No se envía un correo de recuperación.</p>
+        <form [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+          <label for="password-account">Número de cuenta</label><input id="password-account" formControlName="accountNumber" inputmode="numeric" maxlength="8" placeholder="Tus 8 dígitos" autocomplete="username"/>
+          @if (passwordAccountLocked) { <p class="field-hint">Esta es la cuenta de tu sesión y no se puede modificar.</p> }
+          <label for="current-password">Contraseña anterior</label><input id="current-password" formControlName="currentPassword" type="password" autocomplete="current-password" maxlength="128"/>
+          <label for="new-password">Nueva contraseña</label><input id="new-password" formControlName="newPassword" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" maxlength="128"/>
+          <label for="repeat-password">Repite la nueva contraseña</label><input id="repeat-password" formControlName="confirmPassword" type="password" autocomplete="new-password" maxlength="128"/>
+          @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
+          <button class="button primary full" [disabled]="busy()">{{ busy() ? 'Actualizando…' : 'Actualizar contraseña' }}<app-icon name="arrow"/></button>
+        </form>
+      }
+      <div class="auth-security"><app-icon name="lock"/><span>Tu sesión se mantiene solo mientras usas la aplicación.</span></div>
+    </div>
+    <footer class="auth-bottom"><span>© 2026 SmartBancs</span><span>Hecho para simplificar tu día.</span></footer>
+  </section>
+</main>

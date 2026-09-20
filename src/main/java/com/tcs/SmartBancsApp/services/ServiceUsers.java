@@ -1,77 +1,100 @@
 package com.tcs.SmartBancsApp.services;
 
 import java.util.List;
-import java.util.UUID;
+import java.util.Locale;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.server.ResponseStatusException;
-
 import com.tcs.SmartBancsApp.dto.UserRequest;
+import com.tcs.SmartBancsApp.dto.UserResponse;
+import com.tcs.SmartBancsApp.dto.ProfileRequest;
 import com.tcs.SmartBancsApp.model.ModelUsers;
-import com.tcs.SmartBancsApp.repositories.RepositoryTransactions;
-import com.tcs.SmartBancsApp.repositories.RepositoryUsers;
+import com.tcs.SmartBancsApp.model.ModelAccounts;
+import com.tcs.SmartBancsApp.repositories.*;
 
 @Service
 @Validated
 @Transactional(readOnly = true)
 public class ServiceUsers {
+    private final RepositoryUsers users;
+    private final RepositoryAccounts accounts;
+    private final RepositoryTransactions transactions;
+    private final ServiceAccounts serviceAccounts;
+    private final CurrentUser currentUser;
+    private final PasswordEncoder passwords;
 
-    private final RepositoryUsers repositoryUsers;
-    private final RepositoryTransactions repositoryTransactions;
-    private final PasswordEncoder passwordEncoder =
-            Pbkdf2PasswordEncoder.defaultsForSpringSecurity_v5_8();
-
-    public ServiceUsers(RepositoryUsers repositoryUsers,
-            RepositoryTransactions repositoryTransactions) {
-        this.repositoryUsers = repositoryUsers;
-        this.repositoryTransactions = repositoryTransactions;
+    public ServiceUsers(RepositoryUsers users, RepositoryAccounts accounts,
+            RepositoryTransactions transactions, ServiceAccounts serviceAccounts,
+            CurrentUser currentUser, PasswordEncoder passwords) {
+        this.users = users;
+        this.accounts = accounts;
+        this.transactions = transactions;
+        this.serviceAccounts = serviceAccounts;
+        this.currentUser = currentUser;
+        this.passwords = passwords;
     }
 
-    public List<ModelUsers> getUsers() {
-        return repositoryUsers.findAll();
+    // Un cliente solo puede consultar su perfil; no hay rol de administrador en esta demo.
+    public List<UserResponse> getUsers() {
+        return List.of(getUser(currentUser.accountNumber()));
     }
 
-    public ModelUsers getUser(UUID id) {
-        return repositoryUsers.findById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+    public UserResponse getUser(String number) {
+        var account = serviceAccounts.getAccount(number);
+        return response(users.findById(account.getUserId()).orElseThrow(), account);
     }
 
     @Transactional
-    public ModelUsers createUser(@NotNull @Valid UserRequest request) {
-        ModelUsers user = new ModelUsers();
+    public UserResponse createUser(@NotNull @Valid UserRequest request) {
+        var user = new ModelUsers();
         applyChanges(user, request);
-        return repositoryUsers.saveAndFlush(user);
+        user = users.saveAndFlush(user);
+        var account = new ModelAccounts();
+        account.setAccountNumber(accounts.nextAccountNumber());
+        account.setUserId(user.getUserId());
+        account = accounts.saveAndFlush(account);
+        return response(user, account);
     }
 
     @Transactional
-    public ModelUsers updateUser(UUID id, @NotNull @Valid UserRequest request) {
-        ModelUsers user = getUser(id);
-        applyChanges(user, request);
-        return repositoryUsers.saveAndFlush(user);
+    public UserResponse updateUser(String number, @NotNull @Valid ProfileRequest request) {
+        var account = serviceAccounts.getAccount(number);
+        var user = users.findForUpdate(account.getUserId()).orElseThrow();
+        user.setName(request.name().trim());
+        user.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
+        return response(users.saveAndFlush(user), account);
     }
 
     @Transactional
-    public void deleteUser(UUID id) {
-        ModelUsers user = getUser(id);
-        if (repositoryTransactions.existsByUserId(id)) {
+    public void deleteUser(String number) {
+        var account = accounts.findForUpdate(number).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Cuenta no encontrada"));
+        currentUser.requireOwner(account);
+        if (account.getBalance().signum() != 0 || transactions.existsByUserId(account.getUserId())
+                || transactions.existsBySourceAccountNumberOrDestinationAccountNumber(number, number)
+                || accounts.findByUserIdOrderByAccountNumber(account.getUserId()).size() != 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "No se puede eliminar un usuario con movimientos registrados");
+                    "Solo se puede eliminar un usuario con una unica cuenta sin saldo ni movimientos");
         }
-        // The RESTRICT foreign key also protects against concurrent inserts.
-        repositoryUsers.delete(user);
-        repositoryUsers.flush();
+        accounts.delete(account);
+        accounts.flush();
+        users.deleteById(account.getUserId());
+        users.flush();
     }
 
     private void applyChanges(ModelUsers user, UserRequest request) {
         user.setName(request.name().trim());
-        user.setEmail(request.email().trim());
-        user.setPassword(passwordEncoder.encode(request.password()));
+        user.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
+        user.setPassword(passwords.encode(request.password()));
+    }
+
+    private UserResponse response(ModelUsers user, ModelAccounts account) {
+        return new UserResponse(account.getAccountNumber(), user.getName(), user.getEmail(),
+                account.getBalance(), user.getCreatedAt());
     }
 }
