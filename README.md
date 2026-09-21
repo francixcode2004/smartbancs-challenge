@@ -4,6 +4,8 @@ Demo bancaria con Angular 21, Java 21 / Spring Boot, PostgreSQL y un servicio Py
 
 Los importes se manejan con `BigDecimal` y `NUMERIC(15,2)`. Las operaciones bancarias usan transacciones de base de datos e idempotencia. Los depósitos, pagos y la integración Bancs son simulaciones.
 
+Este README explica tanto cómo ejecutar el MVP como las decisiones que hay detrás del código. La intención es que otra persona pueda levantarlo, seguir el flujo completo, repetir las pruebas y entender qué partes están preparadas para crecer y cuáles siguen siendo propias de una demostración local.
+
 ## 1. Requisitos
 
 - Docker Desktop iniciado, con contenedores Linux y Docker Compose v2.
@@ -221,7 +223,100 @@ docker compose up -d --wait
 | `etl` | Transformación opcional de datos; no es requisito de arranque |
 | `tests` | Colección Postman |
 
-El adaptador Bancs es simulado; su estado se consulta con JWT en `GET /api/integration/bancs/status`. El cambio de contraseña de la demo exige la anterior; no sustituye una recuperación real por correo. No se ha acreditado una capacidad de 10 000 transacciones por segundo.
+El adaptador Bancs es simulado; su estado se consulta con JWT en `GET /api/integration/bancs/status`. El cambio de contraseña de la demo exige la anterior; no sustituye una recuperación real por correo.
+
+## 9. Decisiones técnicas
+
+### Dinero y consistencia
+
+El código usa `BigDecimal` en Java y `NUMERIC(15,2)` en PostgreSQL. Es una elección deliberada: los saldos no se pueden calcular con `double` sin introducir errores binarios. La validación rechaza importes con más de dos decimales, importes no positivos y valores fuera del rango definido por la cuenta.
+
+Cada operación bancaria se confirma dentro de una transacción de PostgreSQL. En esa misma transacción se guardan el movimiento, la clave de idempotencia, el cambio de saldo y el evento de salida hacia Bancs. Si algo falla antes del commit, todo vuelve atrás. Si el cliente pierde la respuesta después del commit, puede repetir la misma clave y recuperar el resultado sin descontar el dinero dos veces.
+
+Las cuentas se bloquean en orden numérico cuando una operación afecta a dos cuentas. Esto reduce la posibilidad de deadlocks entre transferencias cruzadas. El coste de esta decisión es que una cuenta muy utilizada puede convertirse en un punto de serialización; es preferible esa limitación explícita a permitir saldos inconsistentes.
+
+### Seguridad y límites de confianza
+
+Spring Security valida JWT HS256, emisor, expiración y versión de credenciales. Además, cada operación vuelve a comprobar en la base de datos que la cuenta pertenece al usuario del token. El número de cuenta no se considera una credencial.
+
+La API no recibe ni devuelve contraseñas. Angular solo envía el Bearer token a Spring. OpenAI se llama exclusivamente desde el contenedor Python; Java filtra y valida los movimientos, y no reenvía JWT, contraseñas, correos ni nombres. El servicio Python tampoco publica el puerto `8000` al host.
+
+### Por qué las recomendaciones están separadas
+
+La lógica bancaria queda en Java porque necesita autorización, transacciones y acceso a PostgreSQL. El cálculo de ingresos, gastos, ahorro, proporción de gasto y categorías queda en Python porque es una tarea de analítica y lenguaje, independiente del commit bancario. Así se puede cambiar el proveedor de IA o añadir reglas locales sin mezclar esa dependencia con el saldo.
+
+La respuesta de OpenAI se valida antes de guardarse: solo se aceptan entre una y tres recomendaciones y cada elemento debe tener `title`, `message`, `priority` y `category`. La recomendación nunca tiene permisos para modificar cuentas. Si el proveedor falla, el MVP puede mostrar un fallback local según el camino ejercitado; en ningún caso una operación bancaria debe depender de que OpenAI responda.
+
+### Asincronía y experiencia de usuario
+
+La generación de recomendaciones se ejecuta fuera del commit bancario. Una transferencia, depósito, retiro o pago no espera a OpenAI ni se revierte porque el proveedor esté lento. El botón del dashboard sí espera la respuesta de su solicitud explícita para poder mostrar el resultado al usuario; esto es distinto de hacer que una transacción bancaria espere a la IA.
+
+### Por qué se usa Compose
+
+Compose hace reproducible el entorno completo: PostgreSQL, Spring Boot, FastAPI, Nginx, Prometheus y Grafana comparten una red privada. Nginx es la única entrada HTTP publicada para la aplicación. Esta topología evita exponer la base de datos y el microservicio de recomendaciones durante la demo, y se puede trasladar después a Kubernetes, Container Apps o un servicio equivalente.
+
+## 10. Cómo replicar y escalar
+
+Para replicar el MVP basta con conservar el esquema de `database/init`, configurar las variables de entorno y ejecutar `docker compose up -d --build --wait`. En otra máquina hay que cambiar únicamente los valores locales de secretos, puertos y claves; el flujo Angular → Nginx → Spring → PostgreSQL/Python se mantiene.
+
+Para una siguiente etapa de escala, el orden razonable sería:
+
+1. Medir primero con el script de carga de esta entrega y con datos representativos. Guardar throughput, p95, p99, errores, CPU, memoria y conexiones a PostgreSQL.
+2. Separar lecturas y escrituras si el volumen lo justifica, usando réplicas de lectura para historial y recomendaciones.
+3. Mantener una sola fuente de verdad para los saldos y particionar o archivar `transactions` cuando el historial crezca.
+4. Externalizar el procesamiento de recomendaciones y de la outbox a una cola durable. El consumidor debe conservar idempotencia, reintentos con backoff y una cola de mensajes fallidos.
+5. Ejecutar varias instancias de Spring detrás de un balanceador con el mismo `JWT_SECRET`, límites de conexión y observabilidad centralizada.
+6. Sustituir el adaptador Bancs simulado por un cliente real con timeouts, circuit breaker, auditoría y reconciliación.
+
+El cuello de botella esperado en operaciones que actualizan el mismo saldo no es Angular ni Nginx: es la transacción de PostgreSQL y el bloqueo de la cuenta. Aumentar réplicas de Spring no elimina esa serialización; para escalarla hay que distribuir las cuentas calientes, reducir trabajo dentro de la transacción y diseñar una contabilidad por asientos antes de intentar relajar la consistencia.
+
+## 11. Prueba de 10.000 transacciones por segundo
+
+El script [tests/load/load_transactions.py](tests/load/load_transactions.py) genera solicitudes reales contra `POST /api/transactions/deposits`. Usa JWT, una cuenta existente, importes de dos decimales y una clave `Idempotency-Key` nueva por solicitud. No necesita `requests`, `aiohttp` ni paquetes adicionales.
+
+Primero registra un usuario, inicia sesión y asegúrate de que su cuenta pueda recibir el importe total de la prueba. Por ejemplo, para diez segundos a 0,01 USD se necesitan al menos 1.000 USD de margen contable. Después ejecuta desde la raíz:
+
+```powershell
+python .\tests\load\load_transactions.py `
+    --token "JWT_DEL_LOGIN" `
+    --account "12345678" `
+    --rate 10000 `
+    --duration 10 `
+    --workers 256
+```
+
+El resultado muestra solicitudes enviadas, respuestas 2xx, errores, throughput efectivo y latencias mínima, p50, p95, p99 y máxima. La prueba devuelve código distinto de cero si hay errores, para que pueda usarse en un pipeline. `--allow-errors` existe solo para una medición exploratoria y no convierte una prueba fallida en una prueba aprobada.
+
+La cifra `10.000 TPS` es el objetivo de generación, no una capacidad garantizada. El resultado válido es el throughput efectivo que imprime el script, junto con los códigos HTTP y los percentiles. Ejecutar la prueba en el mismo equipo que Docker, contra una cuenta única y con PostgreSQL local no equivale a una prueba de producción. Para una prueba seria se necesitan un generador separado, varias cuentas, datos precargados, una duración de calentamiento, una ventana de medición y criterios de error acordados.
+
+No uses este script contra una base con dinero real. Los depósitos son simulados, pero siguen escribiendo en la base y aumentan el saldo de la cuenta elegida.
+
+## 12. Qué observar en Grafana
+
+Prometheus recoge las métricas de Spring desde `/actuator/prometheus` cada 15 segundos. En Grafana se puede observar:
+
+- tasa de solicitudes y volumen de tráfico del backend;
+- duración de las solicitudes y percentiles, si el panel consulta los histogramas de `http_server_requests`;
+- respuestas 2xx, 4xx y 5xx;
+- presión de CPU y memoria de los contenedores si se incorpora un exporter de infraestructura;
+- conexiones, bloqueos y tiempos de PostgreSQL si se añade `postgres_exporter`;
+- estado del objetivo de Prometheus y huecos de scrape.
+
+Durante la prueba de carga, la señal importante no es solo el promedio. Un promedio bajo puede ocultar una cola creciente; hay que mirar p95/p99, errores, conexiones y saturación de CPU al mismo tiempo. Con el scrape actual de 15 segundos, Grafana sirve para ver tendencias y saturación, mientras que el script conserva la medición solicitud por solicitud.
+
+### Cómo interpretar 121 microsegundos
+
+121 microsegundos son `0,121 ms`. Es una latencia muy baja y puede ser válida para una operación medida en memoria, una ruta de salud o una medición tomada antes de incluir red, autenticación, PostgreSQL y serialización. No se debe presentar automáticamente como la latencia extremo a extremo de un depósito que bloquea una cuenta y hace commit en PostgreSQL.
+
+Para afirmar que la API tarda 121 microsegundos hay que indicar exactamente qué se midió: endpoint, método, carga, número de muestras, percentil, ubicación del cliente y si se incluyeron Nginx, JWT, base de datos y respuesta HTTP. En este proyecto la comprobación más útil es comparar los percentiles del script con la duración que Prometheus observa en Spring. Si Grafana muestra p95 o p99 muy por encima de 0,121 ms, la cifra de 121 microsegundos corresponde a otra capa o a otra ventana de medición.
+
+## 13. Qué cumple este MVP y qué queda fuera
+
+El MVP cubre registro, autenticación, autorización por cuenta, saldos, depósitos y retiros simulados, transferencias, pagos de servicios simulados, idempotencia, outbox Bancs, historial, recomendaciones financieras, fallback, Docker Compose y métricas básicas con Prometheus/Grafana. La interfaz mantiene las operaciones y recomendaciones dentro del dashboard y del panel de operación.
+
+Quedan fuera de alcance una conexión bancaria real, dinero real, recuperación de contraseña por correo, refresh tokens, alta disponibilidad probada, migraciones automáticas de esquemas existentes, dashboards de Grafana especializados, un SLO formal y una certificación de 10.000 TPS. Es importante conservar esta frontera: documentar una capacidad no medida sería más engañoso que reconocer el límite.
+
+La IA se utilizó como apoyo en el desarrollo de la interfaz de usuario del frontend y en la integración técnica de recomendaciones. No se llama a OpenAI desde Angular: la clave y la comunicación con el proveedor permanecen en Python. Las decisiones de seguridad, persistencia, consistencia y límites descritas aquí pertenecen al diseño y al código del proyecto.
 
 El arranque construye la aplicación, pero **no ejecuta ni demuestra que pasen los tests automáticos**. Para esta entrega, la comprobación funcional reproducible es el recorrido visual y Postman descritos arriba. No se añadieron tests JUnit.
 
