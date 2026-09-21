@@ -1,0 +1,8 @@
+transaction_id,account_number,created_at,period,type,flow,category,amount,description
+tx-001,10000005,2026-09-01T14:00:00Z,2026-09,deposit,income,salary,2500.00,Pago de nómina mensual
+tx-002,10000005,2026-09-03T12:15:00Z,2026-09,service_payment,expense,utilities,450.25,Factura de luz
+tx-003,10000005,2026-09-05T14:20:00Z,2026-09,transfer,expense,housing,700.00,Transferencia alquiler
+tx-004,10000005,2026-09-08T10:00:00Z,2026-09,withdraw,expense,cash,120.00,Retiro cajero
+tx-005,10000005,2026-09-10T08:30:00Z,2026-09,deposit,income,refund,300.00,Devolución
+tx-007,10000005,2026-09-12T16:00:00Z,2026-09,transfer,expense,food,95.50,Transferencia alimentos
+tx-008,10000006,2026-09-02T09:00:00Z,2026-09,deposit,income,salary,1800.00,Nómina

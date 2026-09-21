@@ -1,0 +1,27 @@
+[
+  {
+    "account_number": "10000005",
+    "period": "2026-09",
+    "income": 2800.0,
+    "expenses": 1365.75,
+    "savings": 1434.25,
+    "expense_ratio": 0.4878,
+    "transaction_count": 6,
+    "categories": {
+      "cash": 120.0,
+      "food": 95.5,
+      "housing": 700.0,
+      "utilities": 450.25
+    }
+  },
+  {
+    "account_number": "10000006",
+    "period": "2026-09",
+    "income": 1800.0,
+    "expenses": 0.0,
+    "savings": 1800.0,
+    "expense_ratio": 0.0,
+    "transaction_count": 1,
+    "categories": {}
+  }
+]

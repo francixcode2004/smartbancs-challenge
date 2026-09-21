@@ -83,7 +83,9 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         var config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200", "http://127.0.0.1:4200"));
+        config.setAllowedOrigins(List.of(
+            "http://localhost:4200", "http://127.0.0.1:4200",
+            "http://localhost:8088", "http://127.0.0.1:8088"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
         config.setExposedHeaders(List.of("Location", "Idempotency-Replayed"));
@@ -101,7 +103,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users", "/users/", "/auth/login").permitAll()
+                        .requestMatchers("/health", "/health/**").permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {}))
                 .build();

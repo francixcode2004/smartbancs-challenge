@@ -83,4 +83,43 @@ INSERT INTO users (id, name, email, password) VALUES
     ('11111111-1111-4111-8111-111111111111', 'Pepito Demo', 'pepito@smartbancs.com', 'DEMO_LOGIN_DISABLED'),
     ('22222222-2222-4222-8222-222222222222', 'Maria Demo', 'maria@smartbancs.com', 'DEMO_LOGIN_DISABLED');
 
+CREATE TABLE IF NOT EXISTS bancs_outbox (
+    event_id UUID PRIMARY KEY,
+    transaction_id UUID NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE RESTRICT,
+    idempotency_key UUID NOT NULL UNIQUE,
+    source_account_number VARCHAR(8) REFERENCES accounts(account_number) ON DELETE RESTRICT,
+    destination_account_number VARCHAR(8) REFERENCES accounts(account_number) ON DELETE RESTRICT,
+    amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
+    type VARCHAR(16) NOT NULL,
+    description VARCHAR(255),
+    service_code VARCHAR(30),
+    customer_reference VARCHAR(100),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('PENDING', 'PROCESSING', 'SENT', 'FAILED')),
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    available_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMPTZ,
+    last_error VARCHAR(500)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bancs_outbox_pending
+    ON bancs_outbox (status, available_at, created_at);
+CREATE INDEX IF NOT EXISTS idx_bancs_outbox_processed
+    ON bancs_outbox (status, processed_at DESC);
+
+CREATE TABLE IF NOT EXISTS recommendations (
+    id UUID PRIMARY KEY,
+    account_number VARCHAR(8) NOT NULL REFERENCES accounts(account_number) ON DELETE RESTRICT,
+    title VARCHAR(150) NOT NULL,
+    message VARCHAR(600) NOT NULL,
+    priority VARCHAR(20) NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    prompt_version VARCHAR(50) NOT NULL,
+    source VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_recommendations_account_created
+    ON recommendations (account_number, created_at DESC);
 COMMIT;

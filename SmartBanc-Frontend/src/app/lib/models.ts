@@ -20,3 +20,8 @@ export interface OperationBody {
 export interface PendingOperation {
   key: string; account: string; kind: Operation; body: OperationBody;
 }
+export interface Recommendation {
+  id: string; accountNumber: string; title: string; message: string;
+  priority: 'low' | 'medium' | 'high'; category: string;
+  modelName: string; promptVersion: string; source: string; createdAt: string;
+}

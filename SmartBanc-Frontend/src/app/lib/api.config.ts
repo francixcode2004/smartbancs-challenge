@@ -1,2 +1,2 @@
-// Único lugar para configurar la dirección del backend.
-export const API_URL = 'http://localhost:8080';
+// Nginx expone la API bajo el mismo origen que la aplicación.
+export const API_URL = '/api';

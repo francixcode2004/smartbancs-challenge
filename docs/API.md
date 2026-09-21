@@ -76,7 +76,25 @@ valida la contrasena anterior y la coincidencia de las nuevas. No es recuperacio
 olvido realmente su contrasena no puede usar este flujo de demo.
 GET /accounts/{number}/recipient requiere JWT y devuelve unicamente nombre y numero de cuenta
 del destinatario; no revela email ni saldo. Angular usa este endpoint antes de transferir.
+
+## Recomendaciones financieras
+
+`GET /recommendations` requiere JWT y devuelve la ultima recomendacion del usuario.
+`POST /recommendations/refresh` responde `202 Accepted` y solicita una generacion asincrona.
+Spring calcula features agregadas de la cuenta autenticada y el servicio Python usa OpenAI
+cuando existe `OPENAI_API_KEY` o `API_KEY`; si el proveedor falla se aplica `rules-v1`.
+La recomendacion no puede modificar saldos ni ejecutar transacciones.
 CORS permite localhost:4200 y 127.0.0.1:4200; no se aceptan cookies de autenticacion.
+
+## Sincronizacion con Bancs
+
+Cada transaccion confirmada tambien crea un evento en `bancs_outbox` dentro de la misma
+transaccion de PostgreSQL. Un worker independiente reclama hasta 50 eventos, los entrega al
+adaptador de Bancs y aplica reintentos sin bloquear la respuesta HTTP.
+
+`GET /integration/bancs/status` devuelve los contadores de eventos `PENDING`, `PROCESSING`,
+`SENT` y `FAILED`. En esta demo el adaptador es `MockBancsClient`; el contrato conserva
+`transactionId` e `idempotencyKey` para sustituirlo por el core real sin duplicar operaciones.
 
 Los depositos simulan ingresos de efectivo para la demo. No verifican que un cajero/proveedor haya
 recibido dinero real. Los pagos acreditan una cuenta recaudadora local, sin contactar empresas reales.

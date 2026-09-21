@@ -4,14 +4,17 @@ import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
 import { BankingService } from '../../core/banking.service';
-import { BasicService, Movement, Operation, OperationBody, Recipient, UserProfile } from '../../lib/models';
+import { BasicService, Movement, Operation, OperationBody, Recipient, Recommendation, UserProfile } from '../../lib/models';
 import { apiError } from '../../lib/api-error';
 import { Icon } from '../../shared/icon';
 
 @Component({ selector: 'app-operation-panel', imports: [ReactiveFormsModule, CurrencyPipe, Icon], templateUrl: './operation-panel.html' })
 export class OperationPanel implements OnInit {
   @Input({ required: true }) user!: UserProfile;
+  @Input() recommendation: Recommendation | null = null;
+  @Input() recommendationBusy = false;
   @Output() completed = new EventEmitter<Movement>();
+  @Output() recommendationRequested = new EventEmitter<void>();
   private bank = inject(BankingService);
   private fb = inject(FormBuilder);
   readonly kind = signal<Operation>('transfer');

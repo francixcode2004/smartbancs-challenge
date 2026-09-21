@@ -2,15 +2,17 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { forkJoin, finalize } from 'rxjs';
 import { BankingService } from '../../core/banking.service';
+import { RecommendationService } from '../../core/recommendation.service';
 import { SessionService } from '../../core/session.service';
 import { apiError } from '../../lib/api-error';
-import { Movement, UserProfile } from '../../lib/models';
+import { Movement, Recommendation, UserProfile } from '../../lib/models';
 import { Icon } from '../../shared/icon';
 import { OperationPanel } from './operation-panel';
 
 @Component({ selector: 'app-dashboard', imports: [CurrencyPipe, DatePipe, Icon, OperationPanel], templateUrl: './dashboard.page.html' })
 export class DashboardPage implements OnInit {
   private bank = inject(BankingService);
+  private recommendations = inject(RecommendationService);
   private session = inject(SessionService);
   readonly user = signal<UserProfile | null>(null);
   readonly movements = signal<Movement[]>([]);
@@ -19,6 +21,9 @@ export class DashboardPage implements OnInit {
   readonly hideBalance = signal(false);
   readonly showAll = signal(false);
   readonly filter = signal('all');
+  readonly recommendation = signal<Recommendation | null>(null);
+  readonly recommendationBusy = signal(false);
+  readonly recommendationMessage = signal('');
   readonly today = new Date();
   ngOnInit(): void { this.refresh(); }
   refresh(): void {
@@ -27,9 +32,31 @@ export class DashboardPage implements OnInit {
     this.loading.set(true); this.error.set('');
     forkJoin({ user: this.bank.profile(account), history: this.bank.history(account) })
       .pipe(finalize(() => this.loading.set(false))).subscribe({
-        next: result => { this.user.set(result.user); this.movements.set(result.history); },
+        next: result => {
+          this.user.set(result.user);
+          this.movements.set(result.history);
+          this.loadRecommendation();
+        },
         error: e => this.error.set(apiError(e))
       });
+  }
+  loadRecommendation(): void {
+    this.recommendations.latest().subscribe({
+      next: response => this.recommendation.set(response.status === 200 ? response.body : null),
+      error: () => this.recommendation.set(null)
+    });
+  }
+  requestRecommendation(): void {
+    if (this.recommendationBusy()) return;
+    this.recommendationBusy.set(true);
+    this.recommendationMessage.set('Analizando tus movimientos…');
+    this.recommendations.refresh(this.movements()).pipe(finalize(() => this.recommendationBusy.set(false))).subscribe({
+      next: () => window.setTimeout(() => {
+        this.loadRecommendation();
+        this.recommendationMessage.set('Recomendación actualizada.');
+      }, 1200),
+      error: () => this.recommendationMessage.set('No pudimos actualizarla ahora. Puedes reintentarlo.')
+    });
   }
   received(movement: Movement): boolean { return movement.destinationAccountNumber === this.session.accountNumber(); }
   label(movement: Movement): string {

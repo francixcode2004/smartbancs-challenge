@@ -1,8 +1,16 @@
+### Variables de entorno y secretos ###
+.env
+.env.*
+!.env.example
+*.pem
+
+### Maven / Spring Boot ###
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.class
 
 ### STS ###
 .apt_generated
@@ -31,3 +39,39 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Python (services/recommendations, etl) ###
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+### Node / Frontend ###
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+coverage/
+
+### Terraform / infra ###
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+
+### Logs ###
+*.log
+logs/
+
+### Sistema operativo ###
+.DS_Store
+Thumbs.db
+Desktop.ini

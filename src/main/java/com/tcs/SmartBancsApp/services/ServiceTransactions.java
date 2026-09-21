@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -16,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.tcs.SmartBancsApp.dto.*;
 import com.tcs.SmartBancsApp.model.*;
 import com.tcs.SmartBancsApp.repositories.*;
+import com.tcs.SmartBancsApp.integration.bancs.BancsOutboxService;
+import com.tcs.SmartBancsApp.events.TransactionCommittedEvent;
 
 @Service
 @Validated
@@ -27,14 +30,19 @@ public class ServiceTransactions {
     private final RepositoryBasicServices basicServices;
     private final ServiceAccounts serviceAccounts;
     private final CurrentUser currentUser;
+    private final BancsOutboxService bancsOutbox;
+    private final ApplicationEventPublisher events;
 
     public ServiceTransactions(RepositoryTransactions transactions, RepositoryAccounts accounts,
-            RepositoryBasicServices basicServices, ServiceAccounts serviceAccounts, CurrentUser currentUser) {
+            RepositoryBasicServices basicServices, ServiceAccounts serviceAccounts, CurrentUser currentUser,
+            BancsOutboxService bancsOutbox, ApplicationEventPublisher events) {
         this.transactions = transactions;
         this.accounts = accounts;
         this.basicServices = basicServices;
         this.serviceAccounts = serviceAccounts;
         this.currentUser = currentUser;
+        this.bancsOutbox = bancsOutbox;
+        this.events = events;
     }
 
     public List<ModelTransactions> getTransactions(String accountNumber) {
@@ -134,7 +142,7 @@ public class ServiceTransactions {
             source = lockAccount(sourceNumber);
         }
         currentUser.requireOwner(source == null ? destination : source);
-        if ("transfer".equals(type) && destination.getUserId() == null) {
+        if ("transfer".equals(type) && destination != null && destination.getUserId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usa pago de servicios para una cuenta recaudadora");
         }
 
@@ -158,6 +166,8 @@ public class ServiceTransactions {
         }
         // Movimiento, clave y saldos se confirman juntos o se revierten juntos.
         accounts.flush();
+        bancsOutbox.enqueue(saved);
+        events.publishEvent(new TransactionCommittedEvent(ownNumber));
         return new CreationResult(saved, true);
     }
 
