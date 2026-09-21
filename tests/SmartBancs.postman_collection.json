@@ -18,7 +18,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080",
+      "value": "http://localhost:8088/api",
       "type": "string"
     },
     {
@@ -204,7 +204,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountNumber\": \"{{pepitoAccount}}\",\n  \"password\": \"{{password}}\"\n}",
+              "raw": "{\n  \"password\": \"{{password}}\",\n  \"email\": \"{{pepitoEmail}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -241,7 +241,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountNumber\": \"{{mariaAccount}}\",\n  \"password\": \"{{password}}\"\n}",
+              "raw": "{\n  \"password\": \"{{password}}\",\n  \"email\": \"{{mariaEmail}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1241,7 +1241,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountNumber\": \"{{pepitoAccount}}\",\n  \"password\": \"Incorrecta123!\"\n}",
+              "raw": "{\n  \"password\": \"Incorrecta123!\",\n  \"email\": \"{{pepitoEmail}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1356,7 +1356,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountNumber\": \"{{temporaryAccount}}\",\n  \"password\": \"{{password}}\"\n}",
+              "raw": "{\n  \"password\": \"{{password}}\",\n  \"email\": \"{{temporaryEmail}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1500,7 +1500,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountNumber\": \"{{mariaAccount}}\",\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NuevaDemo2026!\",\n  \"confirmPassword\": \"NuevaDemo2026!\"\n}"
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NuevaDemo2026!\",\n  \"confirmPassword\": \"NuevaDemo2026!\",\n  \"email\": \"{{mariaEmail}}\"\n}"
             }
           },
           "event": [
@@ -1559,7 +1559,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountNumber\": \"{{mariaAccount}}\",\n  \"password\": \"NuevaDemo2026!\"\n}"
+              "raw": "{\n  \"password\": \"NuevaDemo2026!\",\n  \"email\": \"{{mariaEmail}}\"\n}"
             }
           },
           "event": [

@@ -4,7 +4,7 @@ WORKDIR /workspace
 COPY pom.xml mvnw mvnw.cmd ./
 COPY .mvn ./.mvn
 COPY src ./src
-RUN ./mvnw -B -DskipTests package
+RUN chmod +x mvnw && ./mvnw -B -DskipTests package
 
 FROM eclipse-temurin:21-jre
 
