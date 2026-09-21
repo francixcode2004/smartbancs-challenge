@@ -10,5 +10,5 @@
         @if (movements().length > 6) { <button class="text-button history-more" type="button" (click)="showAll.set(!showAll())">{{ showAll() ? 'Mostrar menos' : 'Ver todos los movimientos' }}<app-icon name="arrow"/></button> }
       } @else { <div class="empty-state"><span class="empty-icon"><app-icon name="receipt"/></span><h4>{{ movements().length ? 'Sin resultados para este filtro' : 'Aquí comienza tu historia' }}</h4><p>{{ movements().length ? 'Prueba con otro tipo de movimiento.' : 'Haz tu primer depósito y consulta tus operaciones en este espacio.' }}</p></div> }
     </section>
-  </div><app-operation-panel [user]="profile" [recommendation]="recommendation()" [recommendationBusy]="recommendationBusy()" (recommendationRequested)="requestRecommendation()" (completed)="refresh()"/></div>
+  </div><app-operation-panel [user]="profile" [recommendation]="recommendation()" [recommendationItems]="recommendationItems()" [recommendationMessage]="recommendationMessage()" [recommendationBusy]="recommendationBusy()" (recommendationRequested)="requestRecommendation()" (completed)="refresh()"/></div>
 } @else if (loading()) { <div class="loading-state" role="status"><span class="spinner"></span> Estamos preparando tu cuenta…</div> }

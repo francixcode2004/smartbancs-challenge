@@ -29,8 +29,7 @@ public class Recommendations {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<Void> refresh(@org.springframework.web.bind.annotation.RequestBody List<RecommendationMovement> movements) {
-        recommendations.refreshAsync(currentUser.accountNumber(), movements);
-        return ResponseEntity.accepted().build();
+    public ResponseEntity<List<ModelRecommendation>> refresh(@org.springframework.web.bind.annotation.RequestBody List<RecommendationMovement> movements) {
+        return ResponseEntity.ok(recommendations.refresh(currentUser.accountNumber(), movements));
     }
 }

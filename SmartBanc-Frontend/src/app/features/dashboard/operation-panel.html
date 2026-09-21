@@ -1,6 +1,13 @@
 <section class="panel operations-panel" aria-label="Operaciones bancarias">
   <div class="panel-heading"><div><p class="eyebrow">A UN PASO</p><h3>¿Qué quieres hacer?</h3></div><span class="quiet-icon"><app-icon name="transfer"/></span></div>
-  <div class="operation-assistant"><div class="operation-assistant-top"><span class="assistant-mark"><app-icon name="bot"/></span><div><p class="eyebrow">ASISTENTE SMARTBANCS</p><strong>{{ recommendation?.title || 'Recomendación financiera' }}</strong></div></div>@if (recommendation; as item) {<p>{{ item.message }}</p><span class="assistant-meta">{{ item.source === 'openai' ? 'OpenAI' : 'SmartBancs' }} · Prioridad {{ item.priority }}</span>} @else {<p>Analiza tus movimientos para recibir una recomendación personalizada.</p>}<button class="button secondary full" type="button" [disabled]="recommendationBusy" (click)="recommendationRequested.emit()"><app-icon name="bot"/>{{ recommendationBusy ? 'Analizando…' : recommendation ? 'Actualizar recomendación' : 'Pedir recomendación' }}</button></div>
+  <div class="operation-assistant">
+    <div class="operation-assistant-top"><span class="assistant-mark"><app-icon name="bot"/></span><div><p class="eyebrow">ASISTENTE SMARTBANCS</p><strong>Recomendaciones financieras</strong></div></div>
+    @for (item of recommendationItems; track item.id) {
+      <div><strong>{{ item.title }}</strong><p>{{ item.message }}</p><span class="assistant-meta">{{ item.source === 'openai' ? 'OpenAI' : 'Orientación general · sin IA' }} · Prioridad {{ item.priority }}</span></div>
+    } @empty { <p>Analiza tus últimos 100 movimientos para recibir recomendaciones.</p> }
+    @if (recommendationMessage) { <p role="status" aria-live="polite">{{ recommendationMessage }}</p> }
+    <button class="button secondary full" type="button" [disabled]="recommendationBusy" (click)="recommendationRequested.emit()"><app-icon name="bot"/>{{ recommendationBusy ? 'Analizando…' : recommendation ? 'Actualizar recomendaciones' : 'Pedir recomendaciones' }}</button>
+  </div>
   <div class="operation-tabs" role="group" aria-label="Tipo de operación">
     @for (option of options; track option.kind) { <button type="button" [class.selected]="kind() === option.kind" [attr.aria-pressed]="kind() === option.kind" [disabled]="busy() || pending()" (click)="choose(option.kind)"><app-icon [name]="option.icon"/><span>{{ option.label }}</span></button> }
   </div>

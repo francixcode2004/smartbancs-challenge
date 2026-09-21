@@ -12,7 +12,7 @@ export class RecommendationService {
   }
 
   refresh(movements: Movement[]) {
-    return this.http.post<void>(`${API_URL}/recommendations/refresh`, movements.map(movement => ({
+    return this.http.post<Recommendation[]>(`${API_URL}/recommendations/refresh`, movements.slice(0, 100).map(movement => ({
       transactionId: movement.transactionId,
       sourceAccountNumber: movement.sourceAccountNumber,
       destinationAccountNumber: movement.destinationAccountNumber,

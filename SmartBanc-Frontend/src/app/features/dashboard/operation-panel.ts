@@ -13,6 +13,8 @@ export class OperationPanel implements OnInit {
   @Input({ required: true }) user!: UserProfile;
   @Input() recommendation: Recommendation | null = null;
   @Input() recommendationBusy = false;
+  @Input() recommendationItems: Recommendation[] = [];
+  @Input() recommendationMessage = '';
   @Output() completed = new EventEmitter<Movement>();
   @Output() recommendationRequested = new EventEmitter<void>();
   private bank = inject(BankingService);

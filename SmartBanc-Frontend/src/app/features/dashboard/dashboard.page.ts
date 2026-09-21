@@ -22,6 +22,7 @@ export class DashboardPage implements OnInit {
   readonly showAll = signal(false);
   readonly filter = signal('all');
   readonly recommendation = signal<Recommendation | null>(null);
+  readonly recommendationItems = signal<Recommendation[]>([]);
   readonly recommendationBusy = signal(false);
   readonly recommendationMessage = signal('');
   readonly today = new Date();
@@ -42,7 +43,12 @@ export class DashboardPage implements OnInit {
   }
   loadRecommendation(): void {
     this.recommendations.latest().subscribe({
-      next: response => this.recommendation.set(response.status === 200 ? response.body : null),
+      next: response => {
+        if (this.recommendationBusy()) return;
+        const item = response.status === 200 ? response.body : null;
+        this.recommendation.set(item);
+        this.recommendationItems.set(item ? [item] : []);
+      },
       error: () => this.recommendation.set(null)
     });
   }
@@ -51,10 +57,12 @@ export class DashboardPage implements OnInit {
     this.recommendationBusy.set(true);
     this.recommendationMessage.set('Analizando tus movimientos…');
     this.recommendations.refresh(this.movements()).pipe(finalize(() => this.recommendationBusy.set(false))).subscribe({
-      next: () => window.setTimeout(() => {
-        this.loadRecommendation();
-        this.recommendationMessage.set('Recomendación actualizada.');
-      }, 1200),
+      next: items => {
+        this.recommendationItems.set(items);
+        this.recommendation.set(items[0] ?? null);
+        this.recommendationMessage.set(items[0]?.source === 'openai'
+          ? 'Recomendaciones generadas con IA.' : 'Orientación general: todavía no hay movimientos para analizar.');
+      },
       error: () => this.recommendationMessage.set('No pudimos actualizarla ahora. Puedes reintentarlo.')
     });
   }
