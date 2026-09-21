@@ -63,7 +63,7 @@ export class DashboardPage implements OnInit {
         this.recommendationMessage.set(items[0]?.source === 'openai'
           ? 'Recomendaciones generadas con IA.' : 'Orientación general: todavía no hay movimientos para analizar.');
       },
-      error: () => this.recommendationMessage.set('No pudimos actualizarla ahora. Puedes reintentarlo.')
+      error: error => this.recommendationMessage.set(apiError(error))
     });
   }
   received(movement: Movement): boolean { return movement.destinationAccountNumber === this.session.accountNumber(); }

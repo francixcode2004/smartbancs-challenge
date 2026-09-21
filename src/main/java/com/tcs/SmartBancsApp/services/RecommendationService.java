@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.server.ResponseStatusException;
 import com.tcs.SmartBancsApp.dto.RecommendationApiResponse;
 import com.tcs.SmartBancsApp.dto.RecommendationMovement;
@@ -78,6 +80,24 @@ public class RecommendationService {
             response = client.post().uri("/recommendations")
                     .body(Map.of("currency", "USD", "movements", data))
                     .retrieve().body(RecommendationApiResponse.class);
+        } catch (RestClientResponseException exception) {
+            String message = "El servicio de IA rechazo la solicitud. Revisa los logs de recommendations.";
+            try {
+                var error = exception.getResponseBodyAs(ProviderError.class);
+                if (error != null && error.detail() != null && error.detail().length() <= 400
+                        && !error.detail().contains("sk-") && !error.detail().contains("Bearer ")) {
+                    message = error.detail();
+                }
+            } catch (RuntimeException ignored) {
+                // Una respuesta no JSON conserva el mensaje seguro y no expone el body.
+            }
+            int status = exception.getStatusCode().value();
+            LoggerFactory.getLogger(getClass()).warn("Python recommendations respondio HTTP {}", status);
+            throw new ResponseStatusException(status == 429 ? HttpStatus.TOO_MANY_REQUESTS
+                    : status == 504 ? HttpStatus.GATEWAY_TIMEOUT : HttpStatus.SERVICE_UNAVAILABLE, message);
+        } catch (ResourceAccessException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Java no pudo conectar con Python o agoto el tiempo de espera. Revisa RECOMMENDATIONS_URL y el contenedor recommendations.");
         } catch (RestClientException exception) {
             LoggerFactory.getLogger(getClass()).warn("Servicio de recomendaciones no disponible: {}",
                     exception.getClass().getSimpleName());
@@ -92,6 +112,8 @@ public class RecommendationService {
                         item.category(), response.model(), response.promptVersion(), response.source())).toList();
         return recommendations.saveAll(result);
     }
+
+    public record ProviderError(String detail) {}
 
     public ModelRecommendation latest(String accountNumber) {
         return recommendations.findTopByAccountNumberOrderByCreatedAtDesc(accountNumber).orElse(null);

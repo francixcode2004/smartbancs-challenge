@@ -8,17 +8,17 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 app = FastAPI(title="SmartBancs Recommendations", version="2.0.0")
 
-MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+MODEL = os.getenv("OPENAI_MODEL", "gpt-4o").strip() or "gpt-4o"
 PROMPT_VERSION = "recommendations-v2"
 MAX_INPUT_CHARS = 50000
 VALID_PRIORITIES = {"low", "medium", "high"}
 VALID_CATEGORIES = {"saving", "budget", "spending"}
 
-api_key = os.getenv("OPENAI_API_KEY") or os.getenv("API_KEY")
+api_key = (os.getenv("OPENAI_API_KEY") or "").strip() or (os.getenv("API_KEY") or "").strip()
 client = OpenAI(api_key=api_key, timeout=25.0, max_retries=0) if api_key else None
 
 
@@ -108,9 +108,37 @@ def build_response(recommendations: list[dict[str, str]], source: str) -> dict[s
     }
 
 
+def provider_failure(error: Exception) -> HTTPException:
+    # Nunca registrar str(error): el proveedor puede incluir parte de la clave.
+    code = getattr(error, "code", None)
+    if not isinstance(code, str):
+        code = "unknown"
+    logging.warning("OpenAI failure type=%s status=%s code=%s request_id=%s",
+                    type(error).__name__, getattr(error, "status_code", None),
+                    code, getattr(error, "request_id", None))
+    if isinstance(error, APITimeoutError):
+        return HTTPException(504, "OpenAI tardo demasiado. Vuelve a intentarlo.")
+    if isinstance(error, APIConnectionError):
+        return HTTPException(503, "Python no pudo conectar con OpenAI. Revisa la red del contenedor.")
+    if isinstance(error, APIStatusError):
+        if error.status_code == 401:
+            return HTTPException(503, "OpenAI rechazo la clave cargada en Python. Revisa .env y recrea el contenedor recommendations.")
+        if error.status_code in (403, 404):
+            return HTTPException(503, "El proyecto de OpenAI no tiene acceso al modelo configurado. Revisa OPENAI_MODEL y los permisos de la clave.")
+        if code in {"insufficient_quota", "credit_balance_exhausted", "organization_spend_limit_exceeded",
+                    "project_spend_limit_exceeded", "organization_usage_limit_exceeded"}:
+            return HTTPException(503, "OpenAI rechazo la solicitud por cuota o limite del proyecto/organizacion de esta clave. Revisa su facturacion y limites.")
+        if error.status_code == 429:
+            return HTTPException(429, "OpenAI recibio demasiadas solicitudes. Espera un momento antes de pedir otra recomendacion.")
+        if error.status_code == 400:
+            return HTTPException(502, "OpenAI rechazo los parametros de la solicitud. Revisa el modelo configurado y los logs de recommendations.")
+        return HTTPException(503, "OpenAI no esta disponible temporalmente. Reintenta mas tarde.")
+    return HTTPException(502, "No se pudo procesar la respuesta de IA. Revisa los logs de recommendations.")
+
+
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "UP"}
+def health() -> dict[str, Any]:
+    return {"status": "UP", "model": MODEL, "providerConfigured": client is not None}
 
 
 @app.post("/recommendations")
@@ -127,8 +155,7 @@ async def recommendations(request: Request) -> dict[str, Any]:
     try:
         result = await run_in_threadpool(openai_recommendations, data)
     except Exception as error:
-        logging.warning("Fallo del proveedor de IA: %s", type(error).__name__)
-        raise HTTPException(status_code=503, detail="El proveedor de IA no pudo responder") from None
+        raise provider_failure(error) from None
 
     if not result:
         raise HTTPException(status_code=502, detail="Respuesta de IA invalida")
