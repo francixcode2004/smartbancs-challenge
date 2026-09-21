@@ -12,6 +12,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.tcs.SmartBancsApp.model.ModelUsers;
 
 public interface RepositoryUsers extends JpaRepository<ModelUsers, UUID> {
+    Optional<ModelUsers> findByEmailIgnoreCase(String email);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM ModelUsers u WHERE u.userId = :id")
     Optional<ModelUsers> findForUpdate(@Param("id") UUID id);

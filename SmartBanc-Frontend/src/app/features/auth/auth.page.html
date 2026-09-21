@@ -12,7 +12,7 @@
         <div class="section-icon"><app-icon name="lock"/></div><p class="eyebrow">QUÉ BUENO VERTE</p><h2>Bienvenido de nuevo</h2><p class="muted intro">Ingresa a tu cuenta y continúa con tus planes.</p>
         @if (banner()) { <div class="notice" role="status">{{ banner() }}</div> }
         <form [formGroup]="loginForm" (ngSubmit)="login()">
-          <label for="login-account">Número de cuenta</label><input id="login-account" formControlName="accountNumber" inputmode="numeric" maxlength="8" placeholder="Tus 8 dígitos" autocomplete="username"/>
+          <label for="login-email">Correo electrónico</label><input id="login-email" formControlName="email" type="email" placeholder="nombre@correo.com" autocomplete="username"/>
           <div class="label-line"><label for="login-password">Contraseña</label><a routerLink="/forgot-password">Olvidé mi contraseña</a></div>
           <div class="password-input"><input id="login-password" formControlName="password" [type]="visiblePassword() ? 'text' : 'password'" placeholder="Ingresa tu contraseña" autocomplete="current-password"/><button type="button" class="icon-button" (click)="visiblePassword.set(!visiblePassword())" [attr.aria-label]="visiblePassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"><app-icon name="eye"/></button></div>
           @if (error()) { <p class="error-message" role="alert">{{ error() }}</p> }
@@ -29,10 +29,10 @@
           <button class="button primary full" [disabled]="busy()">{{ busy() ? 'Creando tu cuenta…' : 'Crear mi cuenta' }}<app-icon name="arrow"/></button>
         </form><p class="auth-switch">¿Ya tienes una cuenta? <a routerLink="/login">Inicia sesión</a></p>
       } @else {
-        <a class="back-link" routerLink="/login">← Volver al inicio</a><div class="section-icon"><app-icon name="shield"/></div><h2>Cambia tu contraseña</h2><p class="muted intro">Para esta demo, confirma tu contraseña anterior y elige una nueva. No se envía un correo de recuperación.</p>
+        <a class="back-link" routerLink="/login">← Volver al inicio</a><div class="section-icon"><app-icon name="shield"/></div><h2>Cambia tu contraseña</h2><p class="muted intro">Confirma tu contraseña anterior y elige una nueva. No se envía un correo de recuperación en esta demo.</p>
         <form [formGroup]="passwordForm" (ngSubmit)="changePassword()">
-          <label for="password-account">Número de cuenta</label><input id="password-account" formControlName="accountNumber" inputmode="numeric" maxlength="8" placeholder="Tus 8 dígitos" autocomplete="username"/>
-          @if (passwordAccountLocked) { <p class="field-hint">Esta es la cuenta de tu sesión y no se puede modificar.</p> }
+          <label for="password-email">Correo electrónico</label><input id="password-email" formControlName="email" type="email" placeholder="nombre@correo.com" autocomplete="username"/>
+          @if (passwordAccountLocked) { <p class="field-hint">Este es el correo de tu sesión y no se puede modificar.</p> }
           <label for="current-password">Contraseña anterior</label><input id="current-password" formControlName="currentPassword" type="password" autocomplete="current-password" maxlength="128"/>
           <label for="new-password">Nueva contraseña</label><input id="new-password" formControlName="newPassword" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" maxlength="128"/>
           <label for="repeat-password">Repite la nueva contraseña</label><input id="repeat-password" formControlName="confirmPassword" type="password" autocomplete="new-password" maxlength="128"/>

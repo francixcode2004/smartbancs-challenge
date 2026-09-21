@@ -38,11 +38,9 @@ public class ServiceAuth {
 
     @Transactional(readOnly = true)
     public TokenResponse login(@NotNull @Valid LoginRequest request) {
-        var account = accounts.findById(request.accountNumber()).orElseThrow(this::invalidCredentials);
-        if (account.getUserId() == null) {
-            throw invalidCredentials();
-        }
-        var user = users.findById(account.getUserId()).orElseThrow(this::invalidCredentials);
+        var user = users.findByEmailIgnoreCase(request.email().trim()).orElseThrow(this::invalidCredentials);
+        var account = accounts.findByUserIdOrderByAccountNumber(user.getUserId()).stream().findFirst()
+                .orElseThrow(this::invalidCredentials);
         boolean matches;
         try {
             matches = passwords.matches(request.password(), user.getPassword());
@@ -65,16 +63,18 @@ public class ServiceAuth {
 
     @Transactional
     public void changePassword(@NotNull @Valid PasswordChangeRequest request) {
+        var user = users.findByEmailIgnoreCase(request.email().trim()).orElseThrow(this::invalidCredentials);
+        var account = accounts.findByUserIdOrderByAccountNumber(user.getUserId()).stream().findFirst()
+                .orElseThrow(this::invalidCredentials);
         // La cuenta enviada nunca puede cambiar la identidad del JWT.
-        if (!currentUser.accountNumber().equals(request.accountNumber())) {
+        if (!currentUser.accountNumber().equals(account.getAccountNumber())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo puedes cambiar tu propia contrasena");
         }
         if (!request.newPassword().equals(request.confirmPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las nuevas contrasenas no coinciden");
         }
-        var account = accounts.findById(request.accountNumber()).orElseThrow(this::invalidCredentials);
         currentUser.requireOwner(account);
-        var user = users.findForUpdate(account.getUserId()).orElseThrow(this::invalidCredentials);
+        user = users.findForUpdate(account.getUserId()).orElseThrow(this::invalidCredentials);
         boolean matches;
         try {
             matches = passwords.matches(request.currentPassword(), user.getPassword());

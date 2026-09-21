@@ -19,11 +19,11 @@ export class AuthPage {
   readonly error = signal('');
   readonly visiblePassword = signal(false);
   readonly banner = signal(this.route.snapshot.queryParamMap.has('registered')
-    ? 'Tu cuenta está lista. Guarda tu número e inicia sesión.'
+    ? 'Tu cuenta está lista. Inicia sesión con tu correo.'
     : this.route.snapshot.queryParamMap.has('changed') ? 'Contraseña actualizada. Inicia sesión de nuevo.'
     : this.route.snapshot.queryParamMap.has('expired') ? 'Tu sesión terminó. Inicia sesión para continuar.' : '');
   readonly loginForm = this.fb.nonNullable.group({
-    accountNumber: [this.route.snapshot.queryParamMap.get('accountNumber') ?? '', [Validators.required, Validators.pattern(/^[0-9]{8}$/)]],
+    email: [this.route.snapshot.queryParamMap.get('email') ?? '', [Validators.required, Validators.email, Validators.maxLength(100)]],
     password: ['', [Validators.required, Validators.maxLength(128)]]
   });
   readonly registerForm = this.fb.nonNullable.group({
@@ -34,7 +34,7 @@ export class AuthPage {
   });
   readonly passwordAccountLocked = !!this.session.accessToken();
   readonly passwordForm = this.fb.nonNullable.group({
-    accountNumber: [{ value: this.passwordAccountLocked ? this.session.accountNumber() : '', disabled: this.passwordAccountLocked }, [Validators.required, Validators.pattern(/^[0-9]{8}$/)]],
+    email: [{ value: this.route.snapshot.queryParamMap.get('email') ?? '', disabled: this.passwordAccountLocked }, [Validators.required, Validators.email, Validators.maxLength(100)]],
     currentPassword: ['', Validators.required],
     newPassword: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(128)]],
     confirmPassword: ['', Validators.required]
@@ -42,7 +42,7 @@ export class AuthPage {
   login(): void {
     if (this.busy()) return;
     this.loginForm.markAllAsTouched();
-    if (this.loginForm.invalid) { this.error.set('Ingresa tu cuenta de ocho dígitos y tu contraseña.'); return; }
+    if (this.loginForm.invalid) { this.error.set('Ingresa un correo válido y tu contraseña.'); return; }
     this.busy.set(true); this.error.set('');
     this.auth.login(this.loginForm.getRawValue()).pipe(finalize(() => this.busy.set(false)))
       .subscribe({ next: () => void this.router.navigate(['/app']), error: e => this.error.set(apiError(e)) });
@@ -56,7 +56,7 @@ export class AuthPage {
     this.busy.set(true); this.error.set('');
     this.auth.register({ name: value.name.trim(), email: value.email.trim(), password: value.password })
       .pipe(finalize(() => this.busy.set(false))).subscribe({
-        next: user => void this.router.navigate(['/login'], { queryParams: { accountNumber: user.accountNumber, registered: '1' } }),
+        next: user => void this.router.navigate(['/login'], { queryParams: { email: user.email, registered: '1' } }),
         error: e => this.error.set(apiError(e))
       });
   }
@@ -68,12 +68,11 @@ export class AuthPage {
     }
     this.passwordForm.markAllAsTouched();
     const value = this.passwordForm.getRawValue();
-    if (this.passwordAccountLocked) value.accountNumber = this.session.accountNumber();
     if (this.passwordForm.invalid) { this.error.set('Completa los campos. La nueva contraseña debe tener al menos ocho caracteres.'); return; }
     if (value.newPassword !== value.confirmPassword) { this.error.set('Las nuevas contraseñas no coinciden.'); return; }
     this.busy.set(true); this.error.set('');
     this.auth.changePassword(value).pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => { this.session.clear(); void this.router.navigate(['/login'], { queryParams: { accountNumber: value.accountNumber, changed: '1' } }); },
+      next: () => { this.session.clear(); void this.router.navigate(['/login'], { queryParams: { email: value.email, changed: '1' } }); },
       error: e => this.error.set(apiError(e))
     });
   }
